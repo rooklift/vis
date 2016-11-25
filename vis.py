@@ -26,6 +26,7 @@ class Board(tkinter.Canvas):
         self.bind('<KeyPress>', self.key_down)
         self.bind('<KeyRelease>', self.key_up)
 
+        self.print_info()
         self.draw_grid()
         self.draw()
         self.update_status()
@@ -33,6 +34,9 @@ class Board(tkinter.Canvas):
         self.after(50, self.act)
 
     def act(self):
+
+        original_turn = self.turn
+
         if self.keys.get("Left"):
             self.advance(-1)
         elif self.keys.get("Right"):
@@ -49,7 +53,11 @@ class Board(tkinter.Canvas):
         # Unset the keys. Because of auto-repeat key presses, holding a key still works.
         # But this means the initial KeyPress event only moves us one frame.
         self.keys = dict()
-        
+
+        if self.turn != original_turn:
+            self.draw()
+            self.update_status()    # Needed because what's under the mouse maybe changed
+
         self.after(50, self.act)
 
     def key_down(self, event):
@@ -72,18 +80,11 @@ class Board(tkinter.Canvas):
         self.update_status()
 
     def advance(self, n):
-        original_turn = self.turn
         self.turn += n
-
         if self.turn < 0:
             self.turn = 0
         if self.turn >= len(self.d["frames"]):
             self.turn = len(self.d["frames"]) - 1
-
-        if self.turn != original_turn:
-            self.draw()
-
-        self.update_status()    # Needed because what's under the mouse maybe changed
 
     def update_status(self):
         if self.mousex == None or self.mousey == None:
@@ -131,6 +132,10 @@ class Board(tkinter.Canvas):
 
         self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
 
+    def print_info(self):
+        print("{}x{} ({} frames)".format(self.d["width"], self.d["height"], self.d["num_frames"]))
+        for i in range(self.d["num_players"]):
+            print("  {} - {}".format(i + 1, self.d["player_names"][i]))   # IDs are out by 1 from their index here
 
 class Root(tkinter.Tk):
     def __init__(self, *args, **kwargs):
