@@ -14,11 +14,14 @@ class Board(tkinter.Canvas):
         self.mousex = None
         self.mousey = None
 
+        self.rects = []
+
         self.bind('<Motion>', self.mouse)
         self.bind('<Left>', self.back_one)
         self.bind('<Right>', self.advance_one)
         self.bind('<Leave>', self.mouse_exit)
 
+        self.draw_grid()
         self.draw()
         self.update_status()
 
@@ -61,31 +64,37 @@ class Board(tkinter.Canvas):
         statusbar.config(text = " i = {} ({}, {})      owner = {}      str = {}      prod = {}".format(
             i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod))
 
-    def draw(self):
-        self.delete(tkinter.ALL)    # DESTROY all!
-        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
-
-        frame = self.d["frames"][self.turn]
-
+    def draw_grid(self):
         for x in range(self.d["width"] + 1):
             self.create_line(x * CELL_SIZE, 0, x * CELL_SIZE, self.d["height"] * CELL_SIZE + CELL_SIZE, fill = "#333333")
 
         for y in range(self.d["height"] + 1):
             self.create_line(0, y * CELL_SIZE, self.d["width"] * CELL_SIZE + CELL_SIZE, y * CELL_SIZE, fill = "#333333")
 
+    def draw(self):
+        for r in self.rects:
+            self.delete(r)
+        self.rects = []
+
+        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
+
+        frame = self.d["frames"][self.turn]
+
         for y in range(self.d["height"]):
             for x in range(self.d["width"]):
                 owner, strength = frame[y][x]               # Note y,x format
                 if owner == 0:
                     continue
-                reduction = (255 - strength) // 40
+                reduction = ((255 - strength) // 40) if strength else CELL_SIZE // 2 - 1
                 rect_x = x * CELL_SIZE
                 rect_y = y * CELL_SIZE
-                self.create_rectangle(
+                r = self.create_rectangle(
                     rect_x + reduction, rect_y + reduction, rect_x + CELL_SIZE - reduction, rect_y + CELL_SIZE - reduction,
                     fill = COLOURS[owner],
                     outline = "white" if strength == 255 else "black",
                     tags = "max" if strength == 255 else "normal")
+
+                self.rects.append(r)
 
         self.tag_raise("max")   # Move white-outline rects to front for aesthetic reasons
 
@@ -94,6 +103,7 @@ class Root(tkinter.Tk):
     def __init__(self, *args, **kwargs):
 
         tkinter.Tk.__init__(self, *args, **kwargs)
+        self.resizable(width = False, height = False)
 
         if len(sys.argv) != 2:
             print("No filename received")
