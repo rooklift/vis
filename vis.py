@@ -14,30 +14,49 @@ class Board(tkinter.Canvas):
         self.mousex = None
         self.mousey = None
 
+        # We don't directly respond to key presses. Rather, keep a dict of which keys are down.
+        # This prevents a massive backlog of key events.
+
+        self.keys = dict()
+
         self.rects = []
 
         self.bind('<Motion>', self.mouse)
-        self.bind('<Left>', self.back_one)
-        self.bind('<Right>', self.advance_one)
         self.bind('<Leave>', self.mouse_exit)
+        self.bind('<KeyPress>', self.key_down)
+        self.bind('<KeyRelease>', self.key_up)
 
         self.draw_grid()
         self.draw()
         self.update_status()
 
-    def back_one(self, event):
-        self.turn -= 1
-        if self.turn < 0:
-            self.turn = 0
-        self.draw()
-        self.update_status()
+        self.after(50, self.act)
 
-    def advance_one(self, event):
-        self.turn += 1
-        if self.turn >= len(self.d["frames"]):
-            self.turn = len(self.d["frames"]) - 1
-        self.draw()
-        self.update_status()
+    def act(self):
+        if self.keys.get("Left"):
+            self.advance(-1)
+        elif self.keys.get("Right"):
+            self.advance(1)
+        elif self.keys.get("Up"):
+            self.advance(-10)
+        elif self.keys.get("Down"):
+            self.advance(10)
+        elif self.keys.get("z"):
+            self.advance(-1000)
+        elif self.keys.get("x"):
+            self.advance(1000)
+
+        # Unset the keys. Because of auto-repeat key presses, holding a key still works.
+        # But this means the initial KeyPress event only moves us one frame.
+        self.keys = dict()
+        
+        self.after(50, self.act)
+
+    def key_down(self, event):
+        self.keys[event.keysym] = True
+
+    def key_up(self, event):
+        self.keys[event.keysym] = False
 
     def mouse(self, event):
         self.mousex = event.x // CELL_SIZE
@@ -51,6 +70,20 @@ class Board(tkinter.Canvas):
     def mouse_exit(self, event):
         self.mousex, self.mousey = None, None
         self.update_status()
+
+    def advance(self, n):
+        original_turn = self.turn
+        self.turn += n
+
+        if self.turn < 0:
+            self.turn = 0
+        if self.turn >= len(self.d["frames"]):
+            self.turn = len(self.d["frames"]) - 1
+
+        if self.turn != original_turn:
+            self.draw()
+
+        self.update_status()    # Needed because what's under the mouse maybe changed
 
     def update_status(self):
         if self.mousex == None or self.mousey == None:
@@ -76,8 +109,6 @@ class Board(tkinter.Canvas):
             self.delete(r)
         self.rects = []
 
-        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
-
         frame = self.d["frames"][self.turn]
 
         for y in range(self.d["height"]):
@@ -97,6 +128,8 @@ class Board(tkinter.Canvas):
                 self.rects.append(r)
 
         self.tag_raise("max")   # Move white-outline rects to front for aesthetic reasons
+
+        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
 
 
 class Root(tkinter.Tk):
