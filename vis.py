@@ -95,7 +95,7 @@ class Board(tkinter.Canvas):
         owner, strength = self.d["frames"][self.turn][self.mousey][self.mousex] # Note y,x format
         prod = self.d["productions"][self.mousey][self.mousex]
 
-        statusbar.config(text = "i = {} ({}, {})  own = {}  str = {}  prod = {}".format(
+        statusbar.config(text = "i: {} [{},{}] own: {} st: {} pr: {}".format(
             i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod))
 
     def draw_grid(self):
