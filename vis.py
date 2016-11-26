@@ -1,7 +1,7 @@
 import os, json, sys, tkinter
 
 CELL_SIZE = 16
-COLOURS = ["black", "cyan", "#ff9966", "red", "yellow", "#bbaaff", "#9cffcc"]
+COLOURS = ["#666666", "cyan", "#ff9966", "red", "yellow", "#bbaaff", "#9cffcc"]
 
 class Board(tkinter.Canvas):
     def __init__(self, owner, d, *args, **kwargs):
@@ -14,7 +14,9 @@ class Board(tkinter.Canvas):
         self.mousex = None
         self.mousey = None
 
-        self.showing_production = False
+        self.show_neutrals = tkinter.IntVar(value = 1)
+        self.show_production = tkinter.IntVar(value = 0)
+        self.screen_content = None
 
         # We don't directly respond to key presses. Rather, keep a dict of which keys are down.
         # This prevents a massive backlog of key events.
@@ -48,9 +50,9 @@ class Board(tkinter.Canvas):
             self.advance(-10)
         elif self.keys.get("Down"):
             self.advance(10)
-        elif self.keys.get("z"):
+        elif self.keys.get("z") or self.keys.get("Home"):
             self.advance(-1000)
-        elif self.keys.get("x"):
+        elif self.keys.get("x") or self.keys.get("End"):
             self.advance(1000)
 
         # Unset some keys. Because of auto-repeat key presses, holding a key still works.
@@ -59,18 +61,18 @@ class Board(tkinter.Canvas):
         self.keys["Left"] = False
         self.keys["Right"] = False
 
-        if self.showing_production:
-            if not self.keys.get("p"):
-                self.showing_production = False
-                self.draw()
-                self.update_status()
+        did_toggle_prod = False
 
-        elif self.keys.get("p"):
-            self.showing_production = True
-            self.draw_production()
+        if self.keys.get("p"):
+            did_toggle_prod = True
+            self.keys["p"] = False
+            if not self.show_production.get():
+                self.show_production.set(1)
+            else:
+                self.show_production.set(0)
 
-        elif self.turn != original_turn:
-            self.draw()
+        if self.turn != original_turn or did_toggle_prod:
+            self.redraw()
             self.update_status()
 
         self.after(50, self.act)
@@ -121,6 +123,14 @@ class Board(tkinter.Canvas):
         for y in range(self.d["height"] + 1):
             self.create_line(0, y * CELL_SIZE, self.d["width"] * CELL_SIZE + CELL_SIZE, y * CELL_SIZE, fill = "#333333")
 
+    def redraw(self, force = False):
+        if self.show_production.get():
+            if self.screen_content != "production" or force:
+                self.draw_production()
+        else:
+            if self.screen_content != self.turn or force:
+                self.draw()
+
     def draw(self):
         for r in self.rects:
             self.delete(r)
@@ -131,7 +141,7 @@ class Board(tkinter.Canvas):
         for y in range(self.d["height"]):
             for x in range(self.d["width"]):
                 owner, strength = frame[y][x]               # Note y,x format
-                if owner == 0:
+                if owner == 0 and not self.show_neutrals.get():
                     continue
                 reduction = ((255 - strength) // 40) if strength else CELL_SIZE // 2 - 1
                 rect_x = x * CELL_SIZE
@@ -145,6 +155,8 @@ class Board(tkinter.Canvas):
                 self.rects.append(r)
 
         self.tag_raise("max")   # Move white-outline rects to front for aesthetic reasons
+
+        self.screen_content = self.turn
 
     def draw_production(self):
         for r in self.rects:
@@ -174,6 +186,8 @@ class Board(tkinter.Canvas):
 
                 self.rects.append(r)
 
+        self.screen_content = "production"
+
     def print_info(self):
         print("{}x{} ({} frames)".format(self.d["width"], self.d["height"], self.d["num_frames"]))
         for i in range(self.d["num_players"]):
@@ -201,11 +215,22 @@ class Root(tkinter.Tk):
 
         global statusbar
         statusbar = tkinter.Label(self, text="...awaiting status...", bd = 0, bg = "black", fg = "white", anchor = tkinter.W)
-        statusbar.pack(side = tkinter.BOTTOM, fill = tkinter.X)
 
         global board
         board = Board(self, d, width = width * CELL_SIZE + 1, height = height * CELL_SIZE + 1, bd = 0, bg = "black", highlightthickness = 0)
+
+        menubar = tkinter.Menu(self)
+        options_menu = tkinter.Menu(menubar, tearoff = 0)
+        options_menu.add_checkbutton(label = "Show neutrals", variable = board.show_neutrals, command = lambda : board.redraw(force = True))
+        options_menu.add_checkbutton(label = "Show production", variable = board.show_production, command = lambda : board.redraw(force = True))
+
+        menubar.add_cascade(label = "Options", menu = options_menu)
+
+        self.config(menu = menubar)
+
+        statusbar.pack(side = tkinter.BOTTOM, fill = tkinter.X)
         board.pack()
+
         board.focus_set()
 
 if __name__ == "__main__":
