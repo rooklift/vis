@@ -1,7 +1,7 @@
 import os, json, sys, tkinter
 
 CELL_SIZE = 16
-COLOURS = ["#666666", "cyan", "#ff9966", "red", "yellow", "#bbaaff", "#9cffcc"]
+COLOURS = [None, "cyan", "#ff9966", "red", "yellow", "#bbaaff", "#9cffcc"]
 
 class Board(tkinter.Canvas):
     def __init__(self, owner, d, *args, **kwargs):
@@ -14,6 +14,7 @@ class Board(tkinter.Canvas):
         self.mousex = None
         self.mousey = None
 
+        self.dark = tkinter.IntVar(value = 1)
         self.show_neutrals = tkinter.IntVar(value = 1)
         self.show_production = tkinter.IntVar(value = 0)
         self.screen_content = None
@@ -24,6 +25,7 @@ class Board(tkinter.Canvas):
         self.keys = dict()
 
         self.rects = []
+        self.lines = []
 
         self.bind('<Motion>', self.mouse)
         self.bind('<Leave>', self.mouse_exit)
@@ -104,6 +106,14 @@ class Board(tkinter.Canvas):
             self.turn = len(self.d["frames"]) - 1
         self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
 
+    def dark_toggled(self):
+        if self.dark.get():
+            self.config(background = "black")
+        else:
+            self.config(background = "white")
+        self.draw_grid()
+        self.redraw(force = True)
+
     def update_status(self):
         if self.mousex == None or self.mousey == None:
             statusbar.config(text = "")
@@ -117,11 +127,23 @@ class Board(tkinter.Canvas):
             i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod))
 
     def draw_grid(self):
+
+        for li in self.lines:
+            self.delete(li)
+        self.lines = []
+
+        if self.dark.get():
+            fill = "#333333"
+        else:
+            fill = "#cccccc"
+
         for x in range(self.d["width"] + 1):
-            self.create_line(x * CELL_SIZE, 0, x * CELL_SIZE, self.d["height"] * CELL_SIZE + CELL_SIZE, fill = "#333333")
+            li = self.create_line(x * CELL_SIZE, 0, x * CELL_SIZE, self.d["height"] * CELL_SIZE + CELL_SIZE, fill = fill)
+            self.lines.append(li)
 
         for y in range(self.d["height"] + 1):
-            self.create_line(0, y * CELL_SIZE, self.d["width"] * CELL_SIZE + CELL_SIZE, y * CELL_SIZE, fill = "#333333")
+            li = self.create_line(0, y * CELL_SIZE, self.d["width"] * CELL_SIZE + CELL_SIZE, y * CELL_SIZE, fill = fill)
+            self.lines.append(li)
 
     def redraw(self, force = False):
         if self.show_production.get():
@@ -138,18 +160,23 @@ class Board(tkinter.Canvas):
 
         frame = self.d["frames"][self.turn]
 
+        if self.dark.get():
+            neutral_colour = "#666666"
+        else:
+            neutral_colour = "#e0e0e0"
+
         for y in range(self.d["height"]):
             for x in range(self.d["width"]):
                 owner, strength = frame[y][x]               # Note y,x format
-                if owner == 0 and not self.show_neutrals.get():
+                if owner == 0 and (strength == 0 or not self.show_neutrals.get()):
                     continue
                 reduction = ((255 - strength) // 40) if strength else CELL_SIZE // 2 - 1
                 rect_x = x * CELL_SIZE
                 rect_y = y * CELL_SIZE
                 r = self.create_rectangle(
                     rect_x + reduction, rect_y + reduction, rect_x + CELL_SIZE - reduction, rect_y + CELL_SIZE - reduction,
-                    fill = COLOURS[owner],
-                    outline = "white" if strength == 255 else "black",
+                    fill = COLOURS[owner] if owner else neutral_colour,
+                    outline = "white" if strength == 255 and self.dark.get() else ("black" if owner else neutral_colour),
                     tags = "max" if strength == 255 else "normal")
 
                 self.rects.append(r)
@@ -221,6 +248,7 @@ class Root(tkinter.Tk):
 
         menubar = tkinter.Menu(self)
         options_menu = tkinter.Menu(menubar, tearoff = 0)
+        options_menu.add_checkbutton(label = "Dark", variable = board.dark, command = lambda : board.dark_toggled())
         options_menu.add_checkbutton(label = "Show neutrals", variable = board.show_neutrals, command = lambda : board.redraw(force = True))
         options_menu.add_checkbutton(label = "Show production", variable = board.show_production, command = lambda : board.redraw(force = True))
 
