@@ -14,6 +14,8 @@ class Board(tkinter.Canvas):
         self.mousex = None
         self.mousey = None
 
+        self.showing_production = False
+
         # We don't directly respond to key presses. Rather, keep a dict of which keys are down.
         # This prevents a massive backlog of key events.
 
@@ -30,6 +32,7 @@ class Board(tkinter.Canvas):
         self.draw_grid()
         self.draw()
         self.update_status()
+        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
 
         self.after(50, self.act)
 
@@ -50,13 +53,25 @@ class Board(tkinter.Canvas):
         elif self.keys.get("x"):
             self.advance(1000)
 
-        # Unset the keys. Because of auto-repeat key presses, holding a key still works.
-        # But this means the initial KeyPress event only moves us one frame.
-        self.keys = dict()
+        # Unset some keys. Because of auto-repeat key presses, holding a key still works.
+        # But this means the initial KeyPress event only moves us one frame, which is
+        # nicer for the user.
+        self.keys["Left"] = False
+        self.keys["Right"] = False
 
-        if self.turn != original_turn:
+        if self.showing_production:
+            if not self.keys.get("p"):
+                self.showing_production = False
+                self.draw()
+                self.update_status()
+
+        elif self.keys.get("p"):
+            self.showing_production = True
+            self.draw_production()
+
+        elif self.turn != original_turn:
             self.draw()
-            self.update_status()    # Needed because what's under the mouse maybe changed
+            self.update_status()
 
         self.after(50, self.act)
 
@@ -85,6 +100,7 @@ class Board(tkinter.Canvas):
             self.turn = 0
         if self.turn >= len(self.d["frames"]):
             self.turn = len(self.d["frames"]) - 1
+        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
 
     def update_status(self):
         if self.mousex == None or self.mousey == None:
@@ -93,7 +109,7 @@ class Board(tkinter.Canvas):
 
         i = self.mousey * self.d["width"] + self.mousex
         owner, strength = self.d["frames"][self.turn][self.mousey][self.mousex] # Note y,x format
-        prod = self.d["productions"][self.mousey][self.mousex]
+        prod = self.d["productions"][self.mousey][self.mousex]                  # Note y,x format
 
         statusbar.config(text = "i: {} [{},{}] own: {} st: {} pr: {}".format(
             i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod))
@@ -130,7 +146,33 @@ class Board(tkinter.Canvas):
 
         self.tag_raise("max")   # Move white-outline rects to front for aesthetic reasons
 
-        self.owner.wm_title(str(self.turn) + " / " + str(len(self.d["frames"]) - 1))
+    def draw_production(self):
+        for r in self.rects:
+            self.delete(r)
+        self.rects = []
+
+        for y in range(self.d["height"]):
+            for x in range(self.d["width"]):
+                prod = self.d["productions"][y][x]      # Note y,x format
+
+                if prod > 16:
+                    prod = 16
+
+                rect_x = x * CELL_SIZE
+                rect_y = y * CELL_SIZE
+
+                s = hex(int(255 * prod / 16))[2:]
+
+                if len(s) == 1:
+                    s = "0" + s
+
+                colstring = "#" + s + s + s
+
+                r = self.create_rectangle(
+                    rect_x, rect_y, rect_x + CELL_SIZE, rect_y + CELL_SIZE,
+                    fill = colstring)
+
+                self.rects.append(r)
 
     def print_info(self):
         print("{}x{} ({} frames)".format(self.d["width"], self.d["height"], self.d["num_frames"]))
