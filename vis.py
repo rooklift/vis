@@ -16,6 +16,7 @@ class Board(tkinter.Canvas):
 
         self.dark = tkinter.IntVar(value = 1)
         self.show_neutrals = tkinter.IntVar(value = 1)
+        self.show_strength = tkinter.IntVar(value = 1)
         self.show_production = tkinter.IntVar(value = 0)
         self.screen_content = None
 
@@ -163,25 +164,35 @@ class Board(tkinter.Canvas):
         if self.dark.get():
             neutral_colour = "#666666"
         else:
-            neutral_colour = "#dddddd"
+            neutral_colour = "#e0e0e0"
 
         for y in range(self.d["height"]):
             for x in range(self.d["width"]):
                 owner, strength = frame[y][x]               # Note y,x format
                 if owner == 0 and (strength == 0 or not self.show_neutrals.get()):
                     continue
-                reduction = ((255 - strength) // 40) if strength else CELL_SIZE // 2 - 1
+                if self.show_strength.get():
+                    reduction = ((255 - strength) // 40) if strength else CELL_SIZE // 2 - 1
+                else:
+                    reduction = 0
                 rect_x = x * CELL_SIZE
                 rect_y = y * CELL_SIZE
+
+                outline = "black"
+
+                if strength == 255 and self.dark.get() and self.show_strength.get():
+                    outline = "white"
+
                 r = self.create_rectangle(
                     rect_x + reduction, rect_y + reduction, rect_x + CELL_SIZE - reduction, rect_y + CELL_SIZE - reduction,
                     fill = COLOURS[owner] if owner else neutral_colour,
-                    outline = "white" if strength == 255 and self.dark.get() else ("black" if owner else ("black" if self.dark.get() else "white")),
-                    tags = "max" if strength == 255 else "normal")
+                    outline = outline,
+                    tags = "max" if strength == 255 else ("normal" if owner else "neutral"))
 
                 self.rects.append(r)
 
-        self.tag_raise("max")   # Move white-outline rects to front for aesthetic reasons
+        self.tag_raise("normal")
+        self.tag_raise("max")
 
         self.screen_content = self.turn
 
@@ -250,6 +261,7 @@ class Root(tkinter.Tk):
         options_menu = tkinter.Menu(menubar, tearoff = 0)
         options_menu.add_checkbutton(label = "Dark", variable = board.dark, command = lambda : board.dark_toggled())
         options_menu.add_checkbutton(label = "Show neutrals", variable = board.show_neutrals, command = lambda : board.redraw(force = True))
+        options_menu.add_checkbutton(label = "Show strength", variable = board.show_strength, command = lambda : board.redraw(force = True))
         options_menu.add_checkbutton(label = "Show production", variable = board.show_production, command = lambda : board.redraw(force = True))
 
         menubar.add_cascade(label = "Options", menu = options_menu)
