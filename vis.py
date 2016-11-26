@@ -163,7 +163,7 @@ class Board(tkinter.Canvas):
         if self.dark.get():
             neutral_colour = "#666666"
         else:
-            neutral_colour = "#e0e0e0"
+            neutral_colour = "#dddddd"
 
         for y in range(self.d["height"]):
             for x in range(self.d["width"]):
@@ -176,7 +176,7 @@ class Board(tkinter.Canvas):
                 r = self.create_rectangle(
                     rect_x + reduction, rect_y + reduction, rect_x + CELL_SIZE - reduction, rect_y + CELL_SIZE - reduction,
                     fill = COLOURS[owner] if owner else neutral_colour,
-                    outline = "white" if strength == 255 and self.dark.get() else ("black" if owner else neutral_colour),
+                    outline = "white" if strength == 255 and self.dark.get() else ("black" if owner else ("black" if self.dark.get() else "white")),
                     tags = "max" if strength == 255 else "normal")
 
                 self.rects.append(r)
