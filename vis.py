@@ -1,4 +1,4 @@
-import os, json, sys, tkinter
+import os, json, sys, tkinter, tkinter.filedialog
 
 CELL_SIZE = 16
 COLOURS = [None, "cyan", "#ff9966", "red", "yellow", "#bbaaff", "#9cffcc"]
@@ -120,12 +120,15 @@ class Board(tkinter.Canvas):
             statusbar.config(text = "")
             return
 
+        direction_names = " NESW"
+
         i = self.mousey * self.d["width"] + self.mousex
         owner, strength = self.d["frames"][self.turn][self.mousey][self.mousex] # Note y,x format
         prod = self.d["productions"][self.mousey][self.mousex]                  # Note y,x format
+        direction = self.d["moves"][self.turn][self.mousey][self.mousex]        # Note y,x format
 
-        statusbar.config(text = "i: {} [{},{}] own: {} st: {} pr: {}".format(
-            i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod))
+        statusbar.config(text = "i: {} [{},{}] own: {} st: {} pr: {} mv: {}".format(
+            i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod, direction_names[direction]))
 
     def draw_grid(self):
 
@@ -231,11 +234,30 @@ class Board(tkinter.Canvas):
         for i in range(self.d["num_players"]):
             print("  {} - {}".format(i + 1, self.d["player_names"][i]))   # IDs are out by 1 from their index here
 
+    def save_hlm(self):
+
+        names = ".XRGBVM"
+
+        outfilename = tkinter.filedialog.asksaveasfilename(defaultextension = ".hlm", initialdir = os.path.dirname(os.path.realpath(sys.argv[0])))
+        if outfilename:
+            with open(outfilename, "w") as outfile:
+                for y in range(self.d["height"]):
+                    for x in range(self.d["width"]):
+                        owner, strength = self.d["frames"][self.turn][y][x]
+                        production = self.d["productions"][y][x]
+                        if x == self.d["width"] - 1:
+                            space = ""
+                        else:
+                            space = " "
+                        strength_string = str(strength)
+                        strength_string = (3 - len(strength_string)) * "_" + strength_string
+                        outfile.write("{}{}{}{}".format(names[owner], hex(production)[2:], strength_string, space))
+                    outfile.write("\n")
+
 class Root(tkinter.Tk):
     def __init__(self, *args, **kwargs):
 
         tkinter.Tk.__init__(self, *args, **kwargs)
-        self.resizable(width = False, height = False)
 
         if len(sys.argv) != 2:
             print("No filename received")
@@ -258,12 +280,17 @@ class Root(tkinter.Tk):
         board = Board(self, d, width = width * CELL_SIZE + 1, height = height * CELL_SIZE + 1, bd = 0, bg = "black", highlightthickness = 0)
 
         menubar = tkinter.Menu(self)
+
+        file_menu = tkinter.Menu(menubar, tearoff = 0)
+        file_menu.add_command(label = "Save HLM Format", command = board.save_hlm)
+
         options_menu = tkinter.Menu(menubar, tearoff = 0)
         options_menu.add_checkbutton(label = "Dark", variable = board.dark, command = lambda : board.dark_toggled())
         options_menu.add_checkbutton(label = "Show neutrals", variable = board.show_neutrals, command = lambda : board.redraw(force = True))
         options_menu.add_checkbutton(label = "Show strength", variable = board.show_strength, command = lambda : board.redraw(force = True))
         options_menu.add_checkbutton(label = "Show production", variable = board.show_production, command = lambda : board.redraw(force = True))
 
+        menubar.add_cascade(label = "File", menu = file_menu)
         menubar.add_cascade(label = "Options", menu = options_menu)
 
         self.config(menu = menubar)
