@@ -120,15 +120,18 @@ class Board(tkinter.Canvas):
             statusbar.config(text = "")
             return
 
-        direction_names = " NESW"
-
         i = self.mousey * self.d["width"] + self.mousex
         owner, strength = self.d["frames"][self.turn][self.mousey][self.mousex] # Note y,x format
         prod = self.d["productions"][self.mousey][self.mousex]                  # Note y,x format
-        direction = self.d["moves"][self.turn][self.mousey][self.mousex]        # Note y,x format
+
+        try:
+            direction = self.d["moves"][self.turn][self.mousey][self.mousex]    # Note y,x format
+            direction_name = " NESW"[direction]
+        except:
+            direction_name = " "
 
         statusbar.config(text = "i: {} [{},{}] own: {} st: {} pr: {} mv: {}".format(
-            i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod, direction_names[direction]))
+            i, self.mousex, self.mousey, owner if owner != 0 else " ", strength, prod, direction_name))
 
     def draw_grid(self):
 
